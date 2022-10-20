@@ -77,7 +77,8 @@ class Database:
     def fill_raw_table(self):
         """Check if the raw table is empty, and data already exists."""
         n_raws = self._engine.execute("SELECT COUNT (*) FROM raw_data").fetchone()[0]
-        n_tells = self._engine.execute("SELECT COUNT (*) FROM replay_data").fetchone()[0]
+        n_tells = self._engine.execute("SELECT COUNT (*) FROM replay_data \
+            WHERE message_type = 'tell'").fetchone()[0]
 
         if n_raws == 0 and n_tells != 0:
             print('Replay is not complete')
