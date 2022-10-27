@@ -6,17 +6,21 @@
 # LICENSE file in the root directory of this source tree.
 
 import logging
+import os
+from pathlib import Path
 
 import aepsych.server as server
 import aepsych.utils_logging as utils_logging
 from aepsych.config import Config
 
-def init_server(db_path):
-    # setup logger
-    server.logger = utils_logging.getLogger(logging.DEBUG, "logs")
+def init_server(db_name):
     # random port
     socket = server.sockets.PySocket(port=0)
-    # random datebase path name without dashes
+    # Database path
+    current_path = Path(os.path.abspath(__file__)).parent
+    dbpath = current_path.joinpath(os.path.join("tests/test_databases/", db_name))
+    db_path = os.path.join(current_path, db_name)
+
     return server.AEPsychServer(socket=socket, database_path=db_path)
 
 def generate_single_stimuli_db():
@@ -36,7 +40,7 @@ def generate_single_stimuli_db():
         "extra_info": {},
     }
 
-    s = init_server(db_path = "single_stimuli.db")
+    s = init_server(db_name = "single_stimuli.db")
     s.versioned_handler(setup_request)
 
     x1 = [0.1, 0.2, 0.3, 1, 2, 3, 4]
@@ -53,6 +57,8 @@ def generate_single_stimuli_db():
         tell_request["extra_info"]["e2"] = 2
         i = i + 1
         s.unversioned_handler(tell_request)
+
+    s.cleanup()
 
 def generate_multi_stimuli_db():
     # Read config from .ini file
@@ -71,7 +77,7 @@ def generate_multi_stimuli_db():
         "extra_info": {},
     }
 
-    s = init_server(db_path = "multi_stimuli.db")
+    s = init_server(db_name = "multi_stimuli.db")
     s.versioned_handler(setup_request)
 
     par1 = [[0.1, 0.2], [0.3, 1], [2, 3], [4, 0.1], [0.2, 2], [1, 0.3], [0.3, 0.1]]
@@ -88,6 +94,8 @@ def generate_multi_stimuli_db():
         tell_request["extra_info"]["e2"] = 2
         i = i + 1
         s.unversioned_handler(tell_request)
+
+    s.cleanup()
 
 if __name__ == "__main__":
     generate_single_stimuli_db()
