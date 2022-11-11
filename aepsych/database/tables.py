@@ -13,7 +13,16 @@ import dill
 
 from aepsych.config import Config
 from aepsych.version import __version__
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, PickleType, String, Boolean, Float
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    PickleType,
+    String,
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
@@ -326,7 +335,11 @@ class DbConfigTable(Base):
     def requires_update(engine):
         return False
 
+
 class DbRawTable(Base):
+    """
+    Fact table to store the raw data of each iteration of an experiment.
+    """
     __tablename__ = "raw_data"
 
     unique_id = Column(Integer, primary_key=True, autoincrement=True)
@@ -436,7 +449,12 @@ class DbRawTable(Base):
 
         return False
 
+
 class DbParamTable(Base):
+    """
+    Dimension table to store the parameters of each iteration of an experiment.
+    Supports multiple parameters per iteration, and multiple stimuli per parameter.
+    """
     __tablename__ = "param_data"
 
     unique_id = Column(Integer, primary_key=True, autoincrement=True)
@@ -470,7 +488,12 @@ class DbParamTable(Base):
     def requires_update(engine):
         return False
 
+
 class DbOutcomeTable(Base):
+    """
+    Dimension table to store the outcomes of each iteration of an experiment.
+    Supports multiple outcomes per iteration.
+    """
     __tablename__ = "outcome_data"
 
     unique_id = Column(Integer, primary_key=True, autoincrement=True)

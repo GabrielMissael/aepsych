@@ -10,8 +10,8 @@ import io
 import logging
 import os
 import sys
-import traceback
 import threading
+import traceback
 import warnings
 
 import aepsych.database.db as db
@@ -93,7 +93,7 @@ class AEPsychServer(object):
             except Exception as e:
                 result = BAD_REQUEST
                 logger.warning(
-                f"Request '{request}' raised error '{e}'! Full traceback follows:"
+                    f"Request '{request}' raised error '{e}'! Full traceback follows:"
                 )
                 logger.warning(traceback.format_exc())
             self.socket.send(result)
@@ -162,6 +162,7 @@ class AEPsychServer(object):
             logger.debug(f"replay - type = {result.message_type} request = {request}")
             self.handle_request(request)
 
+        self._db_master_record = master_record
         self.is_performing_replay = False
         self.skip_computations = False
 
@@ -246,6 +247,14 @@ class AEPsychServer(object):
         return out
 
     def get_dataframe_from_replay(self, uuid_of_replay=None, force_replay=False):
+        # DeprecationWarning
+        warnings.warn(
+            "get_dataframe_from_replay is deprecated."
+            + " Use generate_experiment_table with return_df = True instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         if uuid_of_replay is None:
             records = self.db.get_master_records()
             if len(records) > 0:
@@ -298,20 +307,35 @@ class AEPsychServer(object):
             )
         return out
 
-    def generate_experiment_table(self, experiment_id=None, table_name = 'experiment_table',
-                                return_df = False):
+    def generate_experiment_table(
+        self, experiment_id, table_name="experiment_table", return_df=False
+    ):
+        """Generate a table of a given experiment with all the raw data.
 
+        This table is generated from the database, and is added to the
+        experiment's database.
+
+        Args:
+            experiment_id (str): The experiment ID to generate the table for.
+            table_name (str): The name of the table. Defaults to
+                "experiment_table".
+            return_df (bool): If True, also return the dataframe.
+
+        Returns:
+            pd.DataFrame: The dataframe of the experiment table, if
+                return_df is True.
+        """
         param_space = self.db.get_param_for(experiment_id, 1)
         outcome_space = self.db.get_outcome_for(experiment_id, 1)
 
         columns = []
-        columns.append('iteration_id')
+        columns.append("iteration_id")
         for param in param_space:
             columns.append(param.param_name)
         for outcome in outcome_space:
             columns.append(outcome.outcome_name)
 
-        columns.append('timestamp')
+        columns.append("timestamp")
 
         # Create dataframe
         df = pd.DataFrame(columns=columns)
@@ -319,20 +343,20 @@ class AEPsychServer(object):
         # Fill dataframe
         for raw in self.db.get_raw_for(experiment_id):
             row = {}
-            row['iteration_id'] = raw.unique_id
+            row["iteration_id"] = raw.unique_id
             for param in raw.children_param:
                 row[param.param_name] = param.param_value
             for outcome in raw.children_outcome:
                 row[outcome.outcome_name] = outcome.outcome_value
-            row['timestamp'] = raw.timestamp
+            row["timestamp"] = raw.timestamp
             # concat to dataframe
             df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
 
         # Make iteration_id the index
-        df.set_index('iteration_id', inplace=True)
+        df.set_index("iteration_id", inplace=True)
 
         # Save to .db file
-        df.to_sql(table_name, self.db.get_engine(), if_exists='replace')
+        df.to_sql(table_name, self.db.get_engine(), if_exists="replace")
 
         if return_df:
             return df
@@ -750,44 +774,51 @@ class AEPsychServer(object):
         """
         if not self.is_performing_replay:
             self._db_raw_record = self.db.record_raw(
-                master_table = self._db_master_record,
-                model_data = bool(model_data),
+                master_table=self._db_master_record,
+                model_data=bool(model_data),
             )
 
             for param_name, param_value in config.items():
                 if type(param_value) not in [float, int, bool]:
                     if len(param_value) == 1:
                         self.db.record_param(
-                            raw_table = self._db_raw_record,
-                            param_name = str(param_name),
-                            param_value = float(param_value[0]),
+                            raw_table=self._db_raw_record,
+                            param_name=str(param_name),
+                            param_value=float(param_value[0]),
                         )
                     else:
                         for i, v in enumerate(param_value):
                             self.db.record_param(
-                                raw_table = self._db_raw_record,
-                                param_name = str(param_name) + '_stimuli' + str(i),
-                                param_value = float(v),
+                                raw_table=self._db_raw_record,
+                                param_name=str(param_name) + "_stimuli" + str(i),
+                                param_value=float(v),
                             )
                 else:
                     self.db.record_param(
-                        raw_table = self._db_raw_record,
-                        param_name = str(param_name),
-                        param_value = float(param_value),
+                        raw_table=self._db_raw_record,
+                        param_name=str(param_name),
+                        param_value=float(param_value),
                     )
 
             if type(outcome) not in [float, int, bool]:
                 for i, outcome_value in enumerate(outcome):
+                    if type(outcome_value) not in [float, int, bool]:
+                        if len(outcome_value) == 1:
+                            outcome_value = outcome_value[0]
+                        else:
+                            raise ValueError(
+                                "Multi-outcome values must be a list of lists of length 1!"
+                            )
                     self.db.record_outcome(
-                        raw_table = self._db_raw_record,
-                        outcome_name = 'outcome_'+str(i),
-                        outcome_value = float(outcome_value),
+                        raw_table=self._db_raw_record,
+                        outcome_name="outcome_" + str(i),
+                        outcome_value=float(outcome_value),
                     )
             else:
                 self.db.record_outcome(
-                    raw_table = self._db_raw_record,
-                    outcome_name = 'outcome',
-                    outcome_value = float(outcome),
+                    raw_table=self._db_raw_record,
+                    outcome_name="outcome",
+                    outcome_value=float(outcome),
                 )
 
         if model_data:
